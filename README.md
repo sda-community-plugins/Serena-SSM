@@ -1,0 +1,1 @@
+Service Service Manager Plugin for Serena Deployment Automation

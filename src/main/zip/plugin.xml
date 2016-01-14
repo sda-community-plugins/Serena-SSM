@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://www.urbancode.com/PluginXMLSchema_v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <header>
+        <identifier version="1" id="com.urbancode.air.plugin.SerenaSSM" name="Serena SSM"/>
+        <description>The Serena SSM plugin allows you to create, edit, transition and check the status of Change Requests as part of a process.</description>
+        <tag>ITSM Process/Serena SSM</tag>
+    </header>
+
+    <!-- ==================================== -->
+    <!--  Create Change Request               -->
+    <!-- ==================================== -->
+    <step-type name="Create Change Request">
+        <description>Create a new Change Request in Serena SSM, on success the step sets the properties
+            "changeName", "changeId" and "changeUrl" to the new Change Request's "display name", "tableId:itemIdd" and URL.</description>
+        <properties>
+            <property name="project" required="true">
+                <property-ui type="textBox" label="Project"
+                             default-value="Base Project||Change Management||Changes"
+                             description="The fully qualified project name for the change request."/>
+            </property>
+            <property name="title" required="true">
+                <property-ui type="textBox" label="Title"
+                             description="The title of the change request."/>
+            </property>
+            <property name="description" required="true">
+                <property-ui type="textAreaBox" label="Description"
+                             description="A description of the change request."/>
+            </property>
+            <property name="changeReason" required="true">
+                <property-ui type="textAreaBox" label="Reason for Change"
+                             description="The reason for the change request."/>
+            </property>
+            <property name="crType" required="true">
+                <property-ui type="textBox" label="Change Type" default-value="Normal"
+                             description="The type of change, i.e. Normal, Standard, Emergency."/>
+            </property>
+            <property name="crCategory" required="true">
+                <property-ui type="textBox" label="Change Category" default-value="Minor"
+                             description="The type of change, i.e. Minor, Major, Significant."/>
+            </property>
+            <property name="crUrgency" required="true">
+                <property-ui type="textBox" label="Urgency" default-value="Low"
+                             description="The urgency of the change."/>
+            </property>
+            <property name="crImpact" required="true">
+                <property-ui type="textBox" label="Impact" default-value="Department"
+                             description="The impact of the change, i.e. Single User, Department, Enterprise."/>
+            </property>
+            <property name="crPriority" required="true">
+                <property-ui type="textBox" label="Impact" default-value="3"
+                             description="The priority of the change."/>
+            </property>
+            <property name="notes" required="false">
+                <property-ui type="textAreaBox" label="Notes"
+                             description="Any additional notes to add to this change request."/>
+            </property>
+            <property name="configItem" required="false">
+                <property-ui type="textBox" label="Configuration Item" default-value="${p:application/ssm.configItem}"
+                             description="The table:item id of the configuration item to associate the change request with."/>
+            </property>
+            <property name="additionalFields" required="false">
+                <property-ui type="textAreaBox" label="Additional Fields"
+                             description="Newline separated list of name=value pairs for additional fields to set for this change request, where name is the fields database name"/>
+            </property>
+            <property name="serverUrl" required="true">
+                <property-ui type="textBox" default-value="${p:system/ssm.serverUrl}" label="Serena SSM Base URL"
+                             description="The Serena SSM server URL, i.e. http://localhost:80"/>
+            </property>
+            <property name="username" required="false">
+                <property-ui type="textBox" default-value="${p:system/ssm.username}" label="User Name"
+                             description="The user name to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="password" required="false">
+                <property-ui type="secureBox" default-value="${p:system/ssm.password}" label="Password"
+                             description="The password to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="debug" required="false">
+                <property-ui type="checkBox" label="Debug Output" hidden="true"
+                             description="Select this option to display debug output during execution."/>
+            </property>
+            <property name="repositoryUrl" required="true">
+                <property-ui type="textBox" hidden="true" default-value="${p:server.url}"/>
+            </property>
+            <property name="requestId" required="true">
+                <property-ui type="textBox" hidden="true" default-value="${p:request.id}"/>
+            </property>
+        </properties>
+        <post-processing><![CDATA[
+        if (properties.get("exitCode") != 0) {
+            properties.put(new java.lang.String("Status"), new java.lang.String("Failure"));
+        }
+        else {
+            properties.put("Status", "Success");
+        }
+     ]]></post-processing>
+        <command program="${GROOVY_HOME}/bin/groovy">
+            <arg value="-cp"/>
+            <arg path="classes:lib/*"/>
+            <arg value="-Djnp.disableDiscovery=true"/>
+            <arg file="create_change_request.groovy"/>
+            <arg file="${PLUGIN_INPUT_PROPS}"/>
+            <arg file="${PLUGIN_OUTPUT_PROPS}"/>
+        </command>
+    </step-type>
+
+    <!-- ==================================== -->
+    <!--  Update Change Requests               -->
+    <!-- ==================================== -->
+    <step-type name="Update Change Requests">
+        <description>Update one or more Change Requests in Serena SSM.</description>
+        <properties>
+            <property name="changeIds" required="true">
+                <property-ui type="textBox" label="Change Request Ids" default-value="${p:version/ssm.changeIds}"
+                             description="A comma-separated list of change requests (by number) to update."/>
+            </property>
+            <property name="transitionName" required="true">
+                <property-ui type="textBox" label="Transition Name"
+                             default-value="CHANGE_MANAGEMENT.UPDATE1"
+                             description="The database name of the transition to carry out, defaults to update transition."/>
+            </property>
+            <property name="notes" required="false">
+                <property-ui type="textAreaBox" label="Notes"
+                             description="Any additional notes to add to this change request."/>
+            </property>
+            <property name="additionalFields" required="false">
+                <property-ui type="textAreaBox" label="Additional Fields"
+                             description="Newline separated list of name=value pairs for additional fields to update for this change request."/>
+            </property>
+            <property name="failMode" required="true">
+                <property-ui type="selectBox" label="Fail Mode"
+                             description="What should be done when a change request cannot be found."/>
+                <value label="Warn Only">WARN_ONLY</value>
+                <value label="Fail Fast">FAIL_FAST</value>
+                <value label="Fail On No Updates">FAIL_ON_NO_UPDATES</value>
+                <value label="Fail any Any Failure">FAIL_ON_ANY_FAILURE</value>
+            </property>
+            <property name="serverUrl" required="true">
+                <property-ui type="textBox" default-value="${p:system/ssm.serverUrl}" label="Serena SSM Base URL"
+                             description="The Serena SSM server URL, i.e. http://localhost:80"/>
+            </property>
+            <property name="username" required="false">
+                <property-ui type="textBox" default-value="${p:system/ssm.username}" label="User Name"
+                             description="The user name to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="password" required="false">
+                <property-ui type="secureBox" default-value="${p:system/ssm.password}" label="Password"
+                             description="The password to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="debug" required="false">
+                <property-ui type="checkBox" label="Debug Output" hidden="true"
+                             description="Select this option to display debug output during execution."/>
+            </property>
+            <property name="repositoryUrl" required="true">
+                <property-ui type="textBox" hidden="true" default-value="${p:server.url}"/>
+            </property>
+            <property name="requestId" required="true">
+                <property-ui type="textBox" hidden="true" default-value="${p:request.id}"/>
+            </property>
+        </properties>
+        <post-processing><![CDATA[
+        if (properties.get("exitCode") != 0) {
+            properties.put(new java.lang.String("Status"), new java.lang.String("Failure"));
+        }
+        else {
+            properties.put("Status", "Success");
+        }
+     ]]></post-processing>
+        <command program="${GROOVY_HOME}/bin/groovy">
+            <arg value="-cp"/>
+            <arg path="classes:lib/*"/>
+            <arg value="-Djnp.disableDiscovery=true"/>
+            <arg file="update_change_requests.groovy"/>
+            <arg file="${PLUGIN_INPUT_PROPS}"/>
+            <arg file="${PLUGIN_OUTPUT_PROPS}"/>
+        </command>
+    </step-type>
+
+    <!-- ==================================== -->
+    <!--  Check Change Request Status         -->
+    <!-- ==================================== -->
+    <step-type name="Check Change Request Status">
+        <description>Check the current status of one or more Change Requests in Serena SSM.</description>
+        <properties>
+            <property name="changeIds" required="true">
+                <property-ui type="textBox" label="Change Request Ids" default-value="${p:version/ssm.changeIds}"
+                             description="A comma-separated list of change requests (by number) to check."/>
+            </property>
+            <property name="stateNames" required="true">
+                <property-ui type="textBox" label="States"
+                         description="A comma-separated list of states to check for, i.e. ASSESSMENT, APPROVED CHANGES."/>
+            </property>
+            <property name="failStateNames" required="false">
+                <property-ui type="textBox" label="Failure States"
+                             description="A comma-separated list of states to check for, i.e. REJECTED, FAILED that if found will mark the step as a failure."/>
+            </property>
+            <property name="failMode" required="true">
+                <property-ui type="selectBox" label="Fail Mode"
+                             description="What should be done when a change request cannot be found."/>
+                <value label="Warn Only">WARN_ONLY</value>
+                <value label="Fail Fast">FAIL_FAST</value>
+                <value label="Fail On No Updates">FAIL_ON_NO_UPDATES</value>
+                <value label="Fail any Any Failure">FAIL_ON_ANY_FAILURE</value>
+            </property>
+            <property name="serverUrl" required="true">
+                <property-ui type="textBox" default-value="${p:system/ssm.serverUrl}" label="Serena SSM Base URL"
+                             description="The Serena SSM server URL, i.e. http://localhost:80"/>
+            </property>
+            <property name="username" required="false">
+                <property-ui type="textBox" default-value="${p:system/ssm.username}" label="User Name"
+                             description="The user name to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="password" required="false">
+                <property-ui type="secureBox" default-value="${p:system/ssm.password}" label="Password"
+                             description="The password to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="maxRetryCount" required="false">
+                <property-ui default-value="1" description="Maximum number of retries to check for correct state, default value of 1 does not retry, value of -1 retries indefinitely." label="Max Retries" type="textBox"/>
+            </property>
+            <property name="waitInterval" required="false">
+                <property-ui default-value="300" description="Number of seconds to wait before (re)checking status of request." label="Wait Interval" type="textBox"/>
+            </property>
+            <property name="debug" required="false">
+                <property-ui type="checkBox" label="Debug Output" hidden="true"
+                             description="Select this option to display debug output during execution."/>
+            </property>
+        </properties>
+        <post-processing><![CDATA[
+        if (properties.get("exitCode") != 0) {
+            properties.put(new java.lang.String("Status"), new java.lang.String("Failure"));
+        }
+        else {
+            properties.put("Status", "Success");
+        }
+     ]]></post-processing>
+        <command program="${GROOVY_HOME}/bin/groovy">
+            <arg value="-cp"/>
+            <arg path="classes:lib/*"/>
+            <arg value="-Djnp.disableDiscovery=true"/>
+            <arg file="check_change_request_status.groovy"/>
+            <arg file="${PLUGIN_INPUT_PROPS}"/>
+            <arg file="${PLUGIN_OUTPUT_PROPS}"/>
+        </command>
+    </step-type>
+
+    <!-- ==================================== -->
+    <!--  Check Change Requests Exist         -->
+    <!-- ==================================== -->
+    <step-type name="Check Change Requests Exist">
+        <description>Checks if one or more Change Requests exist in Serena SSM.</description>
+        <properties>
+            <property name="changeIds" required="true">
+                <property-ui type="textBox" label="Change Request Ids" default-value="${p:version/ssm.changeIds}"
+                             description="A comma-separated list of change requests (by number) to check."/>
+            </property>
+            <property name="failMode" required="true">
+                <property-ui type="selectBox" label="Fail Mode"
+                             description="What should be done when a change request cannot be found."/>
+                <value label="Warn Only">WARN_ONLY</value>
+                <value label="Fail Fast">FAIL_FAST</value>
+                <value label="Fail On No Updates">FAIL_ON_NO_UPDATES</value>
+                <value label="Fail any Any Failure">FAIL_ON_ANY_FAILURE</value>
+            </property>
+            <property name="serverUrl" required="true">
+                <property-ui type="textBox" default-value="${p:system/ssm.serverUrl}" label="Serena SSM Base URL"
+                             description="The Serena SSM server URL, i.e. http://localhost:80"/>
+            </property>
+            <property name="username" required="false">
+                <property-ui type="textBox" default-value="${p:system/ssm.username}" label="User Name"
+                             description="The user name to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="password" required="false">
+                <property-ui type="secureBox" default-value="${p:system/ssm.password}" label="Password"
+                             description="The password to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="debug" required="false">
+                <property-ui type="checkBox" label="Debug Output" hidden="true"
+                             description="Select this option to display debug output during execution."/>
+            </property>
+        </properties>
+        <post-processing><![CDATA[
+        if (properties.get("exitCode") != 0) {
+            properties.put(new java.lang.String("Status"), new java.lang.String("Failure"));
+        }
+        else {
+            properties.put("Status", "Success");
+        }
+     ]]></post-processing>
+        <command program="${GROOVY_HOME}/bin/groovy">
+            <arg value="-cp"/>
+            <arg path="classes:lib/*"/>
+            <arg value="-Djnp.disableDiscovery=true"/>
+            <arg file="check_change_requests_exist.groovy"/>
+            <arg file="${PLUGIN_INPUT_PROPS}"/>
+            <arg file="${PLUGIN_OUTPUT_PROPS}"/>
+        </command>
+    </step-type>
+
+    <!-- ==================================== -->
+    <!--  Check Change Request Dates          -->
+    <!-- ==================================== -->
+    <step-type name="Check Change Request Dates">
+        <description>Check the current date against the Implementation start/end dates for the Change Requests in Serena SSM. If the current date is not between these dates the step fails.</description>
+        <properties>
+            <property name="changeIds" required="true">
+                <property-ui type="textBox" label="Change Request Ids" default-value="${p:version/ssm.changeIds}"
+                             description="A comma-separated list of change requests (by number) to check."/>
+            </property>
+            <property name="failMode" required="true">
+                <property-ui type="selectBox" label="Fail Mode"
+                             description="What should be done when a change request cannot be found."/>
+                <value label="Warn Only">WARN_ONLY</value>
+                <value label="Fail Fast">FAIL_FAST</value>
+                <value label="Fail On No Updates">FAIL_ON_NO_UPDATES</value>
+                <value label="Fail any Any Failure">FAIL_ON_ANY_FAILURE</value>
+            </property>
+            <property name="serverUrl" required="true">
+                <property-ui type="textBox" default-value="${p:system/ssm.serverUrl}" label="Serena SSM Base URL"
+                             description="The Serena SSM server URL, i.e. http://localhost:80"/>
+            </property>
+            <property name="username" required="false">
+                <property-ui type="textBox" default-value="${p:system/ssm.username}" label="User Name"
+                             description="The user name to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="password" required="false">
+                <property-ui type="secureBox" default-value="${p:system/ssm.password}" label="Password"
+                             description="The password to be used to connect to the Serena SSM server."/>
+            </property>
+            <property name="maxRetryCount" required="false">
+                <property-ui default-value="1" description="Maximum number of retries to check for correct state, ydefault value of 1 does not retry, value of -1 retries indefinitely." label="Max Retries" type="textBox"/>
+            </property>
+            <property name="waitInterval" required="false">
+                <property-ui default-value="300" description="Number of seconds to wait before (re)checking status of request." label="Wait Interval" type="textBox"/>
+            </property>
+            <property name="debug" required="false">
+                <property-ui type="checkBox" label="Debug Output" hidden="true"
+                             description="Select this option to display debug output during execution."/>
+            </property>
+        </properties>
+        <post-processing><![CDATA[
+        if (properties.get("exitCode") != 0) {
+            properties.put(new java.lang.String("Status"), new java.lang.String("Failure"));
+        }
+        else {
+            properties.put("Status", "Success");
+        }
+     ]]></post-processing>
+        <command program="${GROOVY_HOME}/bin/groovy">
+            <arg value="-cp"/>
+            <arg path="classes:lib/*"/>
+            <arg value="-Djnp.disableDiscovery=true"/>
+            <arg file="check_change_request_dates.groovy"/>
+            <arg file="${PLUGIN_INPUT_PROPS}"/>
+            <arg file="${PLUGIN_OUTPUT_PROPS}"/>
+        </command>
+    </step-type>
+
+</plugin>
